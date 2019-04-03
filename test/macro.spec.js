@@ -269,7 +269,7 @@ test.group('Macroable', (group) => {
       <ul>
       <li>
       <p>List item</p>
-      Hey dude
+        Hey dude
       </li>
       </ul>\n
     `)
@@ -377,6 +377,33 @@ test.group('Macroable', (group) => {
 
     assert.equal(result.contents, dedent`
     <p>Here is a pen</p>\n
+    `)
+  })
+
+  test('call the fn when macro opening closing tags are detected and when closing tag ends with spaces', async (assert) => {
+    const macroable = Macroable()
+    assert.plan(4)
+
+    macroable.addMacro('alert', function (content, props, { eat }) {
+      assert.deepEqual(props, {})
+      assert.equal(eat.now().line, 3)
+      assert.equal(content, 'Hey dude')
+    })
+
+    const space = ' '
+
+    const template = dedent`
+    Hello world!
+
+    [alert]
+    Hey dude
+    [/alert]${space}
+
+    Other text
+    `
+    const result = await exec(template, unifiedStream().use(macroable.transformer).use(html))
+    assert.equal(result.contents, dedent`
+      <p>Hello world!</p>\n<p>Other text</p>\n
     `)
   })
 })

@@ -107,73 +107,37 @@ function processInline (eat, value, { $, spaces, macroName, macro, props }, macr
  * @return {void}
  */
 function processBlock (eat, value, { $, spaces, macroName, macro, props }, macroFnPayload) {
-  /**
-   * Keeping a hold whether the tag was ever closed
-   * or not
-   *
-   * @type {Boolean}
-   */
-  let isClosed = false
+  const endOfMacroStr = `\n${spaces}[/${macroName}]`
+  const endOfMacro = value.indexOf(endOfMacroStr)
+  if (endOfMacro < 0) {
+    eat($)(macroFnPayload.badNode(`Unclosed macro: ${macroName}`, 'unclosed-macro'))
+    return
+  }
+
+  const firstLineEnd = value.indexOf('\n')
 
   /**
    * Body is everything including opening/closing macro
    * tags and the inner content
    *
-   * @type {Array}
+   * @type {String}
    */
-  const body = []
+  const body = value.substr(0, endOfMacro + endOfMacroStr.length)
 
   /**
    * Children is the inner content of the macro
    *
-   * @type {Array}
+   * @type {String}
    */
-  const children = []
-
-  const lines = value.split('\n')
-
-  /**
-   * Loop until the ending block is found or the
-   * content is over
-   */
-  while (lines.length) {
-    const line = lines.shift()
-    body.push(line)
-
-    /**
-     * Found ending tag. So break
-     * the loop
-     */
-    if (`${line}` === `${spaces}[/${macroName}]`) {
-      isClosed = true
-      break
-    }
-
-    /**
-     * Push the lines, unless the line is same as the macro
-     * starting block
-     */
-    if (!line.startsWith(`${spaces}[${macroName}`)) {
-      children.push(line.replace(spaces, ''))
-    }
-  }
-
-  /**
-   * Done with all the content, but the tag was never
-   * closed
-   */
-  if (!isClosed) {
-    eat($)(macroFnPayload.badNode(`Unclosed macro: ${macroName}`, 'unclosed-macro'))
-    return
-  }
+  const children = body.substr(firstLineEnd + 1, body.length - endOfMacroStr.length - 1 - firstLineEnd)
 
   /**
    * Converting props string to an object
    */
   const propsHash = props ? propBuilder(props) : {}
 
-  const astNode = macro.fn(children.join('\n'), propsHash, macroFnPayload)
-  astNode ? eat(body.join('\n'))(astNode) : eat(body.join('\n'))
+  const astNode = macro.fn(children, propsHash, macroFnPayload)
+  astNode ? eat(body)(astNode) : eat(body)
 }
 
 module.exports = function () {
